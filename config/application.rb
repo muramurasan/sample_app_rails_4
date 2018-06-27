@@ -31,16 +31,25 @@
     end
 
     module ObserveClassLoad
-      OBSERVE_CLASS = Set.new(['StaticPagesController'])
+      OBSERVE_CLASS = Set.new(['StaticPagesController, UsersController'])
 
       class Railtie < ::Rails::Railtie
         config.after_initialize do
+          indent = ''
           TracePoint.trace(:class) do |tp_class|
-            klass = tp_class.binding.eval('self').to_s
-            if OBSERVE_CLASS.include?(klass)
-              Rails.logger.info("---- Loading: #{klass}")
+            load_class = tp_class.binding.eval('self.to_s')
+            if OBSERVE_CLASS.include?(load_class)
+              Rails.logger.info("#{indent}---- Loading: #{load_class}")
+              indent << '  '
+              TracePoint.trace(:end) do |tp_end|
+                if load_class == tp_end.binding.eval('self.to_s')
+                  indent.slice!(-2, 2)
+                  Rails.logger.info("#{indent}---- Loaded:  #{load_class}")
+                  tp_end.disable
+                end
+              end
             else
-              Rails.logger.info(klass)
+              Rails.logger.info("#{indent}#{load_class}")
             end
           end
         end
