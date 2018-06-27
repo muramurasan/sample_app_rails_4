@@ -29,3 +29,20 @@
         config.assets.precompile += %w(*.png *.jpg *.jpeg *.gif)
       end
     end
+
+    module ObserveClassLoad
+      OBSERVE_CLASS = Set.new(['StaticPagesController'])
+
+      class Railtie < ::Rails::Railtie
+        config.after_initialize do
+          TracePoint.trace(:class) do |tp_class|
+            klass = tp_class.binding.eval('self').to_s
+            if OBSERVE_CLASS.include?(klass)
+              Rails.logger.info("---- Loading: #{klass}")
+            else
+              Rails.logger.info(klass)
+            end
+          end
+        end
+      end
+    end
