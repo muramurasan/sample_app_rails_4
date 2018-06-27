@@ -31,25 +31,37 @@
     end
 
     module ObserveClassLoad
-      OBSERVE_CLASS = Set.new(['StaticPagesController, UsersController'])
+      OBSERVE_METHODS = {
+        'UsersHelper' => ['#gravatar_for'],
+        'SessionsController' => ['#new'],
+        'SessionsHelper' => ['#signed_in?']
+      }
 
       class Railtie < ::Rails::Railtie
-        config.after_initialize do
-          indent = ''
+        config.before_initialize do
+          okuribito = Okuribito::Request.new do |method_name, _obj_name, _caller_info, class_name, symbol, _args|
+            Rails.logger.info("#### Called ------ #{class_name}#{symbol}#{method_name}")
+          end
+          # OBSERVE_METHODS.each do |observe_method|
+          #   okuribito.apply_one(observe_method)
+          #   Rails.logger.info("#### Observe start ------ #{observe_method}")
+          # end
+
           TracePoint.trace(:class) do |tp_class|
             load_class = tp_class.binding.eval('self.to_s')
-            if OBSERVE_CLASS.include?(load_class)
-              Rails.logger.info("#{indent}---- Loading: #{load_class}")
-              indent << '  '
+            if OBSERVE_METHODS.has_key?(load_class)
+              Rails.logger.info("---- Loading: #{load_class}")
               TracePoint.trace(:end) do |tp_end|
                 if load_class == tp_end.binding.eval('self.to_s')
-                  indent.slice!(-2, 2)
-                  Rails.logger.info("#{indent}---- Loaded:  #{load_class}")
+                  OBSERVE_METHODS[load_class].each do |method|
+                    okuribito.apply_one(load_class + method)
+                    Rails.logger.info("#### Observe start ------ #{load_class}#{method}")
+                  end
                   tp_end.disable
                 end
               end
             else
-              Rails.logger.info("#{indent}#{load_class}")
+              Rails.logger.info(load_class)
             end
           end
         end
