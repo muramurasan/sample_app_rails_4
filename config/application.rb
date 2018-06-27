@@ -42,26 +42,14 @@
           okuribito = Okuribito::Request.new do |method_name, _obj_name, _caller_info, class_name, symbol, _args|
             Rails.logger.info("#### Called ------ #{class_name}#{symbol}#{method_name}")
           end
-          # OBSERVE_METHODS.each do |observe_method|
-          #   okuribito.apply_one(observe_method)
-          #   Rails.logger.info("#### Observe start ------ #{observe_method}")
-          # end
 
-          TracePoint.trace(:class) do |tp_class|
-            load_class = tp_class.binding.eval('self.to_s')
+          TracePoint.trace(:end) do |tp|
+            load_class = tp.binding.eval('self.to_s')
             if OBSERVE_METHODS.has_key?(load_class)
-              Rails.logger.info("---- Loading: #{load_class}")
-              TracePoint.trace(:end) do |tp_end|
-                if load_class == tp_end.binding.eval('self.to_s')
-                  OBSERVE_METHODS[load_class].each do |method|
-                    okuribito.apply_one(load_class + method)
-                    Rails.logger.info("#### Observe start ------ #{load_class}#{method}")
-                  end
-                  tp_end.disable
-                end
+              OBSERVE_METHODS[load_class].each do |method|
+                okuribito.apply_one(load_class + method)
+                Rails.logger.info("#### Observe start ------ #{load_class}#{method}")
               end
-            else
-              Rails.logger.info(load_class)
             end
           end
         end
